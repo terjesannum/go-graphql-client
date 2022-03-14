@@ -29,11 +29,13 @@ For more information, see package [`github.com/shurcooL/githubv4`](https://githu
 			- [Authentication](#authentication-1)
 			- [Options](#options)
 			- [Events](#events)
+			- [Custom HTTP Client](#custom-http-client)
 			- [Custom WebSocket client](#custom-websocket-client)
 		- [Options](#options-1)
 		- [With operation name (deprecated)](#with-operation-name-deprecated)
 		- [Raw bytes response](#raw-bytes-response)
 		- [Multiple mutations with ordered map](#multiple-mutations-with-ordered-map)
+		- [Debugging and Unit test](#debugging-and-unit-test)
 	- [Directories](#directories)
 	- [References](#references)
 	- [License](#license)
@@ -500,6 +502,19 @@ client.OnDisconnected(fn func())
 client.OnError(onError func(sc *SubscriptionClient, err error) error)
 ```
 
+#### Custom HTTP Client
+
+Use `WithWebSocketOptions` to customize the HTTP client which is used by the subscription client.
+
+```go
+client.WithWebSocketOptions(WebsocketOptions{
+	HTTPClient: &http.Client{
+		Transport: http.DefaultTransport,
+		Timeout: time.Minute,
+	}
+})
+```
+
 #### Custom WebSocket client
 
 By default the subscription client uses [nhooyr WebSocket client](https://github.com/nhooyr/websocket). If you need to customize the client, or prefer using [Gorilla WebSocket](https://github.com/gorilla/websocket), let's follow the Websocket interface and replace the constructor with `WithWebSocket` method:
@@ -663,6 +678,59 @@ variables := map[string]interface{}{
 	"login2": graphql.String("diman"),
 	"login3": graphql.String("indigo"),
 }
+```
+
+### Debugging and Unit test
+
+Enable debug mode with the `WithDebug` function. If the request is failed, the request and response information will be included in `extensions[].internal` property.
+
+```json
+{
+	"errors": [
+		{
+			"message":"Field 'user' is missing required arguments: login",
+			"extensions": {
+				"internal": {
+					"request": {
+						"body":"{\"query\":\"{user{name}}\"}",
+						"headers": {
+							"Content-Type": ["application/json"]
+						}
+					},
+					"response": {
+						"body":"{\"errors\": [{\"message\": \"Field 'user' is missing required arguments: login\",\"locations\": [{\"line\": 7,\"column\": 3}]}]}",
+						"headers": {
+							"Content-Type": ["application/json"]
+						}
+					}
+				}
+			},
+			"locations": [
+				{
+					"line":7,
+					"column":3
+				}
+			]
+		}
+	]
+}
+```
+
+Because the GraphQL query string is generated in runtime using reflection, it isn't really safe. To assure the GraphQL query is expected, it's necessary to write some unit test for query construction.
+
+```go
+// ConstructQuery build GraphQL query string from struct and variables
+func ConstructQuery(v interface{}, variables map[string]interface{}, options ...Option) (string, error)
+
+// ConstructQuery build GraphQL mutation string from struct and variables
+func ConstructMutation(v interface{}, variables map[string]interface{}, options ...Option) (string, error)
+
+// ConstructSubscription build GraphQL subscription string from struct and variables
+func ConstructSubscription(v interface{}, variables map[string]interface{}, options ...Option) (string, error) 
+
+// UnmarshalGraphQL parses the JSON-encoded GraphQL response data and stores
+// the result in the GraphQL query data structure pointed to by v.
+func UnmarshalGraphQL(data []byte, v interface{}) error 
 ```
 
 Directories

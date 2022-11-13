@@ -29,13 +29,13 @@ const (
 	// The server may responses with this message to the GQL_CONNECTION_INIT from client, indicates the server rejected the connection.
 	GQL_CONNECTION_ERROR OperationMessageType = "conn_err"
 	// Client sends this message to execute GraphQL operation
-	GQL_START OperationMessageType = "start"
+	GQL_START OperationMessageType = "subscribe"
 	// Client sends this message in order to stop a running GraphQL operation execution (for example: unsubscribe)
 	GQL_STOP OperationMessageType = "stop"
 	// Server sends this message upon a failing operation, before the GraphQL execution, usually due to GraphQL validation errors (resolver errors are part of GQL_DATA message, and will be added as errors array)
 	GQL_ERROR OperationMessageType = "error"
 	// The server sends this message to transfter the GraphQL execution result from the server to the client, this message is a response for GQL_START message.
-	GQL_DATA OperationMessageType = "data"
+	GQL_DATA OperationMessageType = "next"
 	// Server sends this message to indicate that a GraphQL operation is done, and no more data will arrive for the specific operation.
 	GQL_COMPLETE OperationMessageType = "complete"
 	// Server message that should be sent right after each GQL_CONNECTION_ACK processed and then periodically to keep the client connection alive.
@@ -241,6 +241,8 @@ func (sc *SubscriptionClient) init() error {
 		}
 
 		if err == nil {
+			sc.printLog("Waiting for server to ack connection", "client", GQL_INTERNAL)
+			time.Sleep(10 * time.Second)
 			return nil
 		}
 
@@ -665,7 +667,7 @@ func (wh *WebsocketHandler) Close() error {
 func newWebsocketConn(sc *SubscriptionClient) (WebsocketConn, error) {
 
 	options := &websocket.DialOptions{
-		Subprotocols: []string{"graphql-ws"},
+		Subprotocols: []string{"graphql-transport-ws"},
 		HTTPClient:   sc.websocketOptions.HTTPClient,
 	}
 
